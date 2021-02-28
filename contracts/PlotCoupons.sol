@@ -14,6 +14,7 @@ import "./external/openzeppelin-solidity/token/ERC721/IERC721.sol";
 import "./external/openzeppelin-solidity/token/ERC721/ERC165.sol";
 import "./external/openzeppelin-solidity/math/SafeMath.sol";
 import "./external/openzeppelin-solidity/token/ERC721/IERC721Receiver.sol";
+import "./external/openzeppelin-solidity/token/ERC20/IERC20.sol";
 
 
 contract PlotCoupons is IERC721, ERC165 {
@@ -21,9 +22,11 @@ contract PlotCoupons is IERC721, ERC165 {
 
     using SafeMath for uint;
 
-    uint tokenSupply;
+    IERC20 paymantToken;
 
-    mapping(uint=>couponPerk) public couponCategory; 
+    uint public tokenSupply;
+
+    mapping(uint=>couponPerk) public couponCategory;     
 
     struct couponPerk {
         uint perc;
@@ -76,9 +79,13 @@ contract PlotCoupons is IERC721, ERC165 {
      */
     bytes4 private constant _INTERFACE_ID_ERC721 = 0x80ac58cd;
 
-    constructor (address _founder) public {
+    address public adminAdd;
+
+    constructor (address _founder, address _paymentToken) public {
+        paymantToken = IERC20(_paymentToken);
         // register the supported interfaces to conform to ERC721 via ERC165
         _registerInterface(_INTERFACE_ID_ERC721); 
+        adminAdd = _founder;
         addNewCouponType(10,172800,"Position Booster","This coupon can be used to boost positions while predicting in Plotx",true);
         addNewCouponType(5,172800,"Fee Slasher","This coupon can be used to reduce platform fee while predicting in Plotx",false);       
         mint(_founder,0);
@@ -97,7 +104,7 @@ contract PlotCoupons is IERC721, ERC165 {
     }
 
     function refillValidity(uint tokenId, uint amount) public {
-
+        require(paymantToken.transferFrom(msg.sender,adminAdd,amount));
         uint expireTime = couponCategory[tokenId].validity;
         if(expireTime>now) {
             couponCategory[tokenId].validity = couponCategory[tokenId].validity.add(amount.mul(100).div(1e18));
